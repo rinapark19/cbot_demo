@@ -35,6 +35,8 @@ def character_page(intro, story, line, situations, sit_line, bot_profile, user_p
     else:
         if "messages" not in st.session_state:
             st.session_state.messages = []
+        elif len(st.session_state.messages) == 1:
+            st.session_state.messages = []
         
         for message in st.session_state.messages:
             display_chat_message(message["profile_image_url"], message["content"])
@@ -54,8 +56,7 @@ def main():
     os.environ["OPENAI_API_KEY"] = st.secrets["openai_key"]
     
     st.title("웹툰 챗봇🤖")
-    st.info("네이버웹툰 캐릭터를 선택하고, 그냥 대화하거나 상황을 선택하여 대화를 나눌 수 있습니다.")
-    st.subheader("우측 상단 > 를 클릭해 캐릭터를 선택하세요.")
+    st.info("네이버웹툰 캐릭터를 선택하고, 그냥 대화하거나 상황을 선택하여 대화를 나눌 수 있습니다. 우측 상단 > 를 클릭해 캐릭터를 선택하세요.")
     
     st.sidebar.title("캐릭터 및 상황 선택")
     
@@ -90,7 +91,15 @@ def main():
             situations = bot_data
             user_profile = "https://cdn1.iconfinder.com/data/icons/freeline/32/account_friend_human_man_member_person_profile_user_users-512.png"
             
-            st.session_state.clear()
+            if "bot" not in st.session_state: # 처음 할 때
+                st.session_state.bot = selected_char
+            elif st.session_state.bot != selected_char: # 캐릭터 바꿀 때
+                st.session_state.clear()
+                
+            if "sit" not in st.session_state:
+                st.session_state.sit = selected_sit
+            elif st.session_state.sit != selected_sit:
+                st.session_state.clear()
             character_page(intro, story, line, None, "", bot_profile, user_profile, False)
         
         
@@ -104,7 +113,16 @@ def main():
             line = bot_data["line"]
             situations = sit_data
             
-            st.session_state.clear()
+            if "bot" not in st.session_state: # 처음 할 때
+                st.session_state.bot = selected_char
+            elif st.session_state.bot != selected_char: # 캐릭터 바꿀 때
+                st.session_state.clear()
+            
+            if "sit" not in st.session_state:
+                st.session_state.sit = selected_sit
+            elif st.session_state.sit != selected_sit:
+                st.session_state.clear()
+            
             character_page(intro, story, line, situations, sit_line, bot_profile, user_profile, True)
 
 if __name__ == "__main__":
