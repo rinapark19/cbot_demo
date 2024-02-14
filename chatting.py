@@ -1,4 +1,5 @@
 from situation import Character
+from character import OverallChain
 import streamlit as st
 import os
 import json
@@ -12,31 +13,51 @@ def display_chat_message(profile_image_url, message):
         unsafe_allow_html=True
     )
 
-def character_page(intro, story, line, situations, sit_line, bot_profile, user_profile):
-    st.title("캐릭터랑 대화하기")
-    
-    if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": sit_line, "profile_image_url": bot_profile}]
-    elif len(st.session_state.messages) == 1:
-        st.session_state.messages = [{"role": "assistant", "content": sit_line, "profile_image_url": bot_profile}]
-    
-    for message in st.session_state.messages:
-        display_chat_message(message["profile_image_url"], message["content"])
+def character_page(intro, story, line, situations, sit_line, bot_profile, user_profile, isSit):
+    if isSit:
+        if "messages" not in st.session_state:
+            st.session_state.messages = [{"role": "assistant", "content": sit_line, "profile_image_url": bot_profile}]
+        elif len(st.session_state.messages) == 1:
+            st.session_state.messages = [{"role": "assistant", "content": sit_line, "profile_image_url": bot_profile}]
         
-    chatbot = Character(intro, story, line, situations)
+        for message in st.session_state.messages:
+            display_chat_message(message["profile_image_url"], message["content"])
+            
+        chatbot = Character(intro, story, line, situations)
+            
+        if prompt := st.chat_input():
+            st.session_state.messages.append({"role": "user", "content": prompt, "profile_image_url": user_profile})
+            display_chat_message(user_profile, prompt)
+            
+            assistant_response = chatbot.receive_chat(prompt)
+            st.session_state.messages.append({"role": "assistant", "content": assistant_response, "profile_image_url": bot_profile})
+            display_chat_message(bot_profile, assistant_response)
+    else:
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
         
-    if prompt := st.chat_input():
-        st.session_state.messages.append({"role": "user", "content": prompt, "profile_image_url": user_profile})
-        display_chat_message(user_profile, prompt)
-        
-        assistant_response = chatbot.receive_chat(prompt)
-        st.session_state.messages.append({"role": "assistant", "content": assistant_response, "profile_image_url": bot_profile})
-        display_chat_message(bot_profile, assistant_response)      
+        for message in st.session_state.messages:
+            display_chat_message(message["profile_image_url"], message["content"])
+            
+        chatbot = OverallChain(intro, story, line)
+            
+        if prompt := st.chat_input():
+            st.session_state.messages.append({"role": "user", "content": prompt, "profile_image_url": user_profile})
+            display_chat_message(user_profile, prompt)
+            
+            assistant_response = chatbot.receive_chat(prompt)
+            st.session_state.messages.append({"role": "assistant", "content": assistant_response, "profile_image_url": bot_profile})
+            display_chat_message(bot_profile, assistant_response)
+       
 
 def main():
     os.environ["OPENAI_API_KEY"] = st.secrets["openai_key"]
     
-    st.sidebar.title("캐릭터 선택")
+    st.title("웹툰 챗봇🤖")
+    st.info("네이버웹툰 캐릭터를 선택하고, 그냥 대화하거나 상황을 선택하여 대화를 나눌 수 있습니다.")
+    st.subheader("우측 상단 > 를 클릭해 캐릭터를 선택하세요.")
+    
+    st.sidebar.title("캐릭터 및 상황 선택")
     
     with open("sit_data/chars.json", "r", encoding="utf-8") as f:
         json_data = f.read()
@@ -55,14 +76,25 @@ def main():
         situations = bot_data["situations"]
         bot_profile = bot_data["profile"]
         sit_titles = [entry["sit_title"] for entry in situations]
-        sit_titles.insert(0, "선택")
+        sit_titles.insert(0, "상황 없이 대화하기")
         
-        selected_sit = st.sidebar.selectbox(
+        selected_sit = st.sidebar.radio(
             "대화할 상황을 선택하세요.",
             sit_titles,
         )
         
-        if selected_sit != "선택":
+        if selected_sit == "상황 없이 대화하기":
+            intro = bot_data["intro"]
+            story = bot_data["story"]
+            line = bot_data["line"]
+            situations = bot_data
+            user_profile = "https://cdn1.iconfinder.com/data/icons/freeline/32/account_friend_human_man_member_person_profile_user_users-512.png"
+            
+            st.session_state.clear()
+            character_page(intro, story, line, None, "", bot_profile, user_profile, False)
+        
+        
+        if selected_sit != "상황 없이 대화하기":
             sit_data = next((entry for entry in situations if entry["sit_title"] == selected_sit), None)
             sit_line = sit_data["sit_line"]
             user_profile = sit_data["sit_profile"]
@@ -71,7 +103,9 @@ def main():
             story = bot_data["story"]
             line = bot_data["line"]
             situations = sit_data
-            character_page(intro, story, line, situations, sit_line, bot_profile, user_profile)
+            
+            st.session_state.clear()
+            character_page(intro, story, line, situations, sit_line, bot_profile, user_profile, True)
 
 if __name__ == "__main__":
     main()
